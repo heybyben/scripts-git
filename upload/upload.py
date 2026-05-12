@@ -243,40 +243,6 @@ def upload_ranoz(file: Path) -> str | None:
     ok(f"Ranoz.gg -> {C.WHITE}{link}{C.RESET}")
     return f"Ranoz.gg: {link}"
 
-
-def upload_sourceforge(file: Path) -> str | None:
-    section("SourceForge")
-    sf_user = env("SOURCEFORGE_USER")
-    sf_path = env("SOURCEFORGE_PATH")
-    sf_project = env("SOURCEFORGE_PROJECT")
-
-    if not sf_user or not sf_path or not sf_project:
-        err("SOURCEFORGE_USER / SOURCEFORGE_PATH / SOURCEFORGE_PROJECT not set in .env")
-        return None
-
-    dest = f"{sf_user}@frs.sourceforge.net:{sf_path}/{file.name}"
-    step(f"Uploading {file.name} to SourceForge -> {dest}")
-
-    if shutil.which("pv"):
-        with file.open("rb") as f_in:
-            pv = subprocess.Popen(["pv", str(file)], stdout=subprocess.PIPE)
-            ssh = subprocess.Popen(["ssh", dest, "true"], stdin=pv.stdout)
-            pv.stdout.close()
-            pv.wait()
-            ret = ssh.wait()
-    else:
-        warn("'pv' not installed — no progress bar. Using scp.")
-        ret = subprocess.run(["scp", str(file), dest]).returncode
-
-    if ret != 0:
-        err("SourceForge upload failed.")
-        return None
-
-    link = f"https://sourceforge.net/projects/{sf_project}/files/{file.name}/download"
-    ok(f"SourceForge -> {C.WHITE}{link}{C.RESET}")
-    return f"SourceForge: {link}"
-
-
 def send_telegram(
     file: Path, size_b: int, file_md5: str, file_sha1: str, now: str, results: list[str]
 ):
@@ -334,13 +300,12 @@ def send_telegram(
         warn(f"Telegram request failed: {e}")
 
 
-ALL_SERVICES = ["PixelDrain", "GoFile", "Ranoz", "SourceForge"]
+ALL_SERVICES = ["PixelDrain", "GoFile", "Ranoz"]
 
 UPLOADERS = {
     "PixelDrain": upload_pixeldrain,
     "GoFile": upload_gofile,
     "Ranoz": upload_ranoz,
-    "SourceForge": upload_sourceforge,
 }
 
 
@@ -377,13 +342,6 @@ def main():
         action="store_const",
         const=["Ranoz"],
         help="Upload to Ranoz.gg only",
-    )
-    svc_group.add_argument(
-        "-S",
-        dest="services",
-        action="store_const",
-        const=["SourceForge"],
-        help="Upload to SourceForge only",
     )
 
     parser.add_argument(
